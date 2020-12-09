@@ -184,7 +184,7 @@ process bcl_to_fastq {
     file sheet from sheet_file
 
     output:
-    file "*{R1,R2,R3}_001.fastq.gz" into fastqs_fqc_ch, fastqs_output_ch mode flatten
+    file "*/*{R1,R2}_001.fastq.gz" into fastqs_fqc_ch, fastqs_output_ch mode flatten
 
     script:
     """
@@ -194,7 +194,7 @@ process bcl_to_fastq {
     --sample-sheet ${sheet} \\
     --mask-short-adapter-reads 0 \\
     --minimum-trimmed-read-length 0 \\
-    --use-bases-mask y*,I*,y*,y* \\
+    --use-bases-mask Y*,I*,Y* \\
     --no-lane-splitting \\
     --create-fastq-for-index-reads \\
     --processing-threads $task.cpus
@@ -260,25 +260,11 @@ process mergefastq {
     script:
     R1 = reads[0]
     R2 = reads[1]
-    R3 = reads[2]
     
-    if ( params.sequencer != "nextseq" ){
     """
-    seqkit concat ${R2} ${R1} \\
-    --out-file ${prefix}_bc_001.fastq.gz \\
-    --line-width 0 \\
-    --threads $task.cpus
-    cp ${R3} ${prefix}_cdna_001.fastq.gz
+    cp ${R1} ${prefix}_bc_001.fastq.gz
+    cp ${R2} ${prefix}_cdna_001.fastq.gz
     """
-    } else {
-    """
-    seqkit concat <(seqkit seq --reverse --complement --seq-type 'dna' ${R2}) ${R1} \\
-    --out-file ${prefix}_bc_001.fastq.gz \\
-    --line-width 0 \\
-    --threads $task.cpus
-    cp ${R3} ${prefix}_cdna_001.fastq.gz
-    """
-    }
 }
 
 // merged_fastqc_ch.subscribe onNext: { println it }, onComplete: { println 'Done' }
@@ -313,7 +299,7 @@ process starsolo {
     STAR \\
     --genomeDir ${index} \\
     --readFilesIn ${cdna_read} ${bc_read} \\
-    --soloCBwhitelist ${whitelist} \\
+    --soloCBwhitelist ${whitelist} ${whitelist} \\
     --runThreadN ${task.cpus} \\
     --outFileNamePrefix ${prefix}_ \\
     --sjdbOverhang 100 \\
@@ -325,11 +311,8 @@ process starsolo {
     --runDirPerm All_RWX \\
     --readFilesCommand zcat \\
     --soloFeatures Gene Velocyto \\
-    --soloType CB_UMI_Simple \\
-    --soloUMIlen 8 \\
-    --soloBarcodeReadLength ${params.bc_read_length} \\
-    --soloUMIfiltering MultiGeneUMI \\
-    --soloCBmatchWLtype 1MM_multi_pseudocounts
+    --soloType CB_UMI_Complex \\
+    --soloCBposition 0_0_2_-1 3_1_3_8 --soloUMIposition  3_9_3_16 --soloCBmatchWLtype 1MM --soloUMIfiltering MultiGeneUMI
     
     cp "${prefix}_Solo.out/Gene/Summary.csv" "${prefix}_Gene_Summary.csv"
     
