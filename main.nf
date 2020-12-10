@@ -312,7 +312,12 @@ process starsolo {
     --readFilesCommand zcat \\
     --soloFeatures Gene Velocyto \\
     --soloType CB_UMI_Complex \\
-    --soloCBposition 0_0_2_-1 3_1_3_8 --soloUMIposition  3_9_3_16 --soloCBmatchWLtype 1MM --soloUMIfiltering MultiGeneUMI
+    --soloCBposition 0_0_2_-1 3_1_3_8 \\
+    --soloUMIposition  3_9_3_16 \\
+    --soloAdapterSequence GAGTGATTGCTTGTGACGCCAA \\
+    --soloAdapterMismatchesNmax 3 \\
+    --soloCBmatchWLtype 1MM \\
+    --soloUMIfiltering MultiGeneUMI
     
     cp "${prefix}_Solo.out/Gene/Summary.csv" "${prefix}_Gene_Summary.csv"
     
@@ -338,7 +343,7 @@ process multiqc {
     output:
     file "*multiqc_report.html" into ch_multiqc_report
     file "*_data"
-    file "multiqc_plots"
+    file "multiqc_report_plots"
 
     script:
     rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
