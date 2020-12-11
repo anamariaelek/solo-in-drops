@@ -29,7 +29,8 @@ def helpMessage() {
 
     References:                       If not specified in the configuration file or you wish to overwrite any of the references
       --star_index [path/to/folder]   Path to star index directory (same as --genomeDir parameter in STAR)
-      --barcode_whitelist [file]      Path to cell barcode list (a text file containing one barcode sequence per line)
+      --barcode_whitelist1 [file]     Path to cell barcode1 list (a text file containing one barcode sequence per line)
+      --barcode_whitelist2 [file]     Path to cell barcode2 list (a text file containing one barcode sequence per line)
     
     STARsolo arguments:               If not specified, the default parameters will be used
       --bc_read_length [int]          Read length of cell barcode read. Default: equal to sum of BC + UMI     
@@ -84,10 +85,15 @@ if( params.star_index ){
 }
 
 //Check barcode whitelist
-if( params.barcode_whitelist ){
-    barcode_whitelist = Channel
-        .fromPath(params.barcode_whitelist)
-        .ifEmpty { exit 1, "barcode whitelist not found: ${params.barcode_whitelist}" }
+if( params.barcode_whitelist1 ){
+    barcode_whitelist1 = Channel
+        .fromPath(params.barcode_whitelist1)
+        .ifEmpty { exit 1, "barcode whitelist1 not found: ${params.barcode_whitelist1}" }
+}
+if( params.barcode_whitelist2 ){
+    barcode_whitelist2 = Channel
+        .fromPath(params.barcode_whitelist2)
+        .ifEmpty { exit 1, "barcode whitelist2 not found: ${params.barcode_whitelist2}" }
 }
 
 // Stage config files
@@ -281,7 +287,8 @@ process starsolo {
     input:
     set val(prefix), file(reads) from merged_fastqc_ch
     file index from star_index.collect()
-    file whitelist from barcode_whitelist.collect()
+    file whitelist1 from barcode_whitelist1.collect()
+    file whitelist2 from barcode_whitelist2.collect()
 
     output:
     file "*.bam"
@@ -299,26 +306,28 @@ process starsolo {
     STAR \\
     --genomeDir ${index} \\
     --readFilesIn ${cdna_read} ${bc_read} \\
-    --soloCBwhitelist ${whitelist} ${whitelist} \\
+    --soloCBwhitelist ${whitelist1} ${whitelist2} \\
     --runThreadN ${task.cpus} \\
     --outFileNamePrefix ${prefix}_ \\
     --sjdbOverhang 100 \\
     --outSAMunmapped Within \\
-    --outSAMtype BAM SortedByCoordinate \\
-    --outBAMsortingBinsN 20 \\
-    --outSAMattributes NH HI AS nM CB UB \\
-    --twopassMode Basic \\
-    --runDirPerm All_RWX \\
-    --readFilesCommand zcat \\
-    --soloFeatures Gene Velocyto \\
-    --soloType CB_UMI_Complex \\
-    --soloCBposition 0_0_2_-1 3_1_3_8 \\
-    --soloUMIposition  3_9_3_16 \\
-    --soloAdapterSequence GAGTGATTGCTTGTGACGCCAA \\
-    --soloAdapterMismatchesNmax 3 \\
-    --soloCBmatchWLtype 1MM \\
-    --soloUMIfiltering MultiGeneUMI
-    
+    --outSAMtype BAM SortedByCoordinate \
+    --outBAMsortingBinsN 20 \
+    --outSAMattributes NH HI AS nM CB UB \
+    --twopassMode Basic \
+    --runDirPerm All_RWX \
+    --readFilesCommand zcat \
+    --soloFeatures Gene \
+    --soloType CB_UMI_Complex \
+    --soloCBposition 0_0_2_-1 3_1_3_8 \
+    --soloUMIposition 3_9_3_16 \
+    --soloCBmatchWLtype 1MM \
+    --soloAdapterMismatchesNmax 3 \
+    --soloAdapterSequence GAGTGATTGCTTGTGACGCCAA \
+    --soloUMIfiltering MultiGeneUMI \
+    --soloCellFilter TopCells 3000 \
+    --soloUMIdedup 1MM_Directional
+ 
     cp "${prefix}_Solo.out/Gene/Summary.csv" "${prefix}_Gene_Summary.csv"
     
     """
